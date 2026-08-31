@@ -1,0 +1,17 @@
+{
+    "name": "empresa/sistema-administrativo",
+    "description": "Sistema Administrativo Web mi ERP en PHP y MySQL",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-openssl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
+}
