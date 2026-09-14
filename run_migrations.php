@@ -1,5 +1,5 @@
 <?php
-require 'vendor/autoload.php';
+require 'app/autoload.php';
 $db = \App\Core\Database::getConnection();
 $dir = __DIR__ . '/database/migrations/';
 $files = scandir($dir);

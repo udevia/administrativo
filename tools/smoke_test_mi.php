@@ -11,7 +11,7 @@ echo "    SUITE DE PRUEBAS INTEGRALES - mi ERP v2.0\n";
 echo "====================================================\n\n";
 
 $baseDir = dirname(__DIR__);
-require_once $baseDir . '/vendor/autoload.php';
+require_once $baseDir . '/app/autoload.php';
 
 $errors = 0;
 $success = 0;

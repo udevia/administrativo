@@ -13,7 +13,7 @@ class ContabilidadController {
         header('Content-Type: application/json');
         try {
             $db = Database::getConnection();
-            $stmt = $db->query("SELECT *, IF(nivel >= 4, 1, 0) AS acepta_movimientos FROM contabilidad_puc ORDER BY codigo ASC");
+            $stmt = $db->query("SELECT *, IF(nivel >= 4, 1, 0) AS acepta_movimientos FROM contabilidad_plan_cuentas ORDER BY codigo ASC");
             echo json_encode(['status' => 'success', 'data' => $stmt->fetchAll()]);
         } catch (Exception $e) {
             http_response_code(500);
@@ -40,7 +40,7 @@ class ContabilidadController {
             $db = Database::getConnection();
             $stmt = $db->query("
                 SELECT c.*, u.nombre AS usuario_nombre,
-                       (SELECT COUNT(*) FROM contabilidad_comprobantes_detalles WHERE comprobante_id = c.id) AS total_movimientos
+                       (SELECT COUNT(*) FROM contabilidad_asientos_detalles WHERE comprobante_id = c.id) AS total_movimientos
                 FROM contabilidad_comprobantes c
                 LEFT JOIN usuarios u ON c.usuario_id = u.id
                 ORDER BY c.id DESC
@@ -85,8 +85,8 @@ class ContabilidadController {
             $db = Database::getConnection();
             $stmt = $db->prepare("
                 SELECT d.*, p.codigo AS codigo_cuenta, p.descripcion AS nombre_cuenta
-                FROM contabilidad_comprobantes_detalles d
-                LEFT JOIN contabilidad_puc p ON p.id = d.cuenta_id
+                FROM contabilidad_asientos_detalles d
+                LEFT JOIN contabilidad_plan_cuentas p ON p.id = d.cuenta_id
                 WHERE d.comprobante_id = :id
                 ORDER BY d.id ASC
             ");

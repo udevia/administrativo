@@ -1,5 +1,5 @@
 <?php
-require 'vendor/autoload.php';
+require 'app/autoload.php';
 $db = \App\Core\Database::getConnection();
 $tables = ['departamentos', 'familias', 'categorias', 'depositos'];
 foreach ($tables as $table) {

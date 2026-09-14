@@ -19,7 +19,8 @@ class AuditLogger {
    ): void {
        try {
            $db = Database::getConnection();
-           $uid = $usuarioId ?? ($_SESSION['usuario_id'] ?? 1);
+           $sessionUser = Session::user();
+           $uid = $usuarioId ?? (int)($sessionUser['id'] ?? 1);
            $ip  = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
            $ua  = substr($_SERVER['HTTP_USER_AGENT'] ?? 'CLI/System', 0, 255);
            $stmt = $db->prepare("

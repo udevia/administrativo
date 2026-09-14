@@ -1,5 +1,5 @@
 <?php
-require 'vendor/autoload.php';
+require 'app/autoload.php';
 $db = \App\Core\Database::getConnection();
 $stmt = $db->query("DESCRIBE productos");
 foreach ($stmt->fetchAll() as $row) {

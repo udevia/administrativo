@@ -208,6 +208,13 @@ $activeMenu = $activeMenu ?? 'pos';
                         <span>Tienda Online Oficial <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></span>
                     </a>
                 </div>
+                <div class="border-t border-slate-800 p-3 flex items-center justify-between gap-2">
+                    <div class="min-w-0 text-[11px] text-slate-400">
+                        <div class="truncate font-semibold text-slate-200"><?= htmlspecialchars((string)(\App\Core\Session::user()['nombre'] ?? 'Usuario'), ENT_QUOTES, 'UTF-8') ?></div>
+                        <div class="truncate">Sesión activa</div>
+                    </div>
+                    <a href="/logout" class="rounded-lg px-2 py-1 text-[11px] font-bold text-red-300 hover:bg-red-500/10" title="Cerrar sesión">Salir</a>
+                </div>
                 <div class="p-3 border-t border-slate-800 text-[11px] text-slate-400 font-mono text-center">
                     mi v2.0 Enterprise
                 </div>

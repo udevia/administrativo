@@ -12,6 +12,13 @@ class VentasController {
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $cabecera = $input['cabecera'] ?? $input;
         $items = $input['items'] ?? [];
+        $sessionUser = \App\Core\Session::user();
+        $cabecera['usuario_id'] = (int)($sessionUser['id'] ?? 0);
+        if ($cabecera['usuario_id'] <= 0) {
+            http_response_code(401);
+            echo json_encode(["status" => "error", "message" => "Usuario no autenticado."]);
+            return;
+        }
 
         if (empty($cabecera['tipo_documento']) || empty($cabecera['cliente_id']) || empty($items)) {
             http_response_code(422);

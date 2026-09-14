@@ -5,7 +5,8 @@ define('ROOT_PATH', dirname(__DIR__));
 define('LOCK_FILE', ROOT_PATH . '/storage/installed.lock');
 define('CONFIG_FILE', ROOT_PATH . '/config/database.php');
 
-require_once ROOT_PATH . '/vendor/autoload.php';
+// Autoloader PSR-4 incluido en el proyecto; no depende de vendor/ ignorado por git.
+require_once ROOT_PATH . '/app/autoload.php';
 
 use App\Core\Router;
 use App\Core\License\LicenseValidator;
@@ -27,10 +28,18 @@ use App\Controllers\TelegramWebhookController;
 use App\Controllers\InstallerController;
 use App\Controllers\MaestrosController;
 use App\Controllers\ProduccionController;
+use App\Controllers\AuthController;
+use App\Core\AuthMiddleware;
+use App\Core\Session;
 // 1. Detección de Instalación
 $isInstalled = file_exists(LOCK_FILE) && file_exists(CONFIG_FILE);
 
 $router = new Router();
+
+// Autenticación de la aplicación instalada.
+$router->get('login', [AuthController::class, 'loginForm']);
+$router->post('login', [AuthController::class, 'login']);
+$router->get('logout', [AuthController::class, 'logout']);
 
 // Rutas del Instalador / Setup Wizard (Disponibles siempre)
 $router->get('installer', function() {
@@ -495,8 +504,12 @@ $router->post('api/configuracion/telegram-webhook', function() {
     }
 });
 
-// Despacho de la petición
+// Despacho de la petición con autenticación global para la instalación activa.
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
+$path = trim((string)$uri, '/');
+if (!AuthMiddleware::requireAuthentication($path)) {
+    exit;
+}
 $router->dispatch($uri, $method);
 

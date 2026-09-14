@@ -15,6 +15,13 @@ class ComprasController {
             echo json_encode(["status" => "error", "message" => "Datos de compra incompletos."]);
             return;
         }
+        $sessionUser = \App\Core\Session::user();
+        $input['cabecera']['usuario_id'] = (int)($sessionUser['id'] ?? 0);
+        if ((int)$input['cabecera']['usuario_id'] <= 0) {
+            http_response_code(401);
+            echo json_encode(["status" => "error", "message" => "Usuario no autenticado."]);
+            return;
+        }
         try {
             $resultado = ComprasService::procesarCompra($input['cabecera'], $input['items']);
             header('Content-Type: application/json');
