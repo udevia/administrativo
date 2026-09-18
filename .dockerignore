@@ -1,0 +1,9 @@
+.git
+.gitignore
+scratch
+*.md
+docker-compose.yml
+.env
+config
+storage
+logs

@@ -2,15 +2,22 @@
 <div x-show="modalSerialesAbierto" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" x-cloak>
     <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 space-y-4">
         
-        <div class="border-b pb-3 flex justify-between items-center">
-            <div>
+        <div class="border-b pb-3 flex justify-between items-center gap-3">
+            <div class="min-w-0">
                 <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-barcode text-blue-600"></i> Escaneo de Seriales / IMEI
                 </h3>
-                <p class="text-xs text-slate-500 font-medium" x-text="productoSerialActual.descripcion"></p>
+                <p class="text-xs text-slate-500 font-medium truncate" x-text="productoSerialActual.descripcion"></p>
             </div>
-            <span class="text-xs font-mono font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200"
-                  x-text="serialesEscaneados.length + ' de ' + productoSerialActual.cantidad + ' asignados'"></span>
+            <div class="flex items-center gap-3 flex-shrink-0">
+                <label class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Cant.:</span>
+                    <input type="number" min="1" x-model.number="productoSerialActual.cantidad"
+                           class="w-14 border border-slate-200 rounded-lg p-1 text-xs font-mono text-center">
+                </label>
+                <span class="text-xs font-mono font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200"
+                      x-text="serialesEscaneados.length + ' de ' + productoSerialActual.cantidad + ' asignados'"></span>
+            </div>
         </div>
 
         <!-- Entrada con Pistola de Código de Barras -->

@@ -34,6 +34,9 @@ class Database {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
+                // Permite que exec()/query() procesen archivos con múltiples sentencias
+                // (migraciones SQL de database/migrations/, run_migrations.php)
+                PDO::MYSQL_ATTR_MULTI_STATEMENTS => true,
             ];
 
             try {

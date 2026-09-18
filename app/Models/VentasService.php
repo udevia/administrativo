@@ -50,7 +50,8 @@ class VentasService {
                    'porcentaje_descuento'     => $porcDesc,
                    'porcentaje_iva'           => $porcIva,
                    'subtotal'                 => round($subtotalLin, 4),
-                   'total'                    => round($totalLin, 4)
+                   'total'                    => round($totalLin, 4),
+                   'seriales'                 => array_map('strval', (array)($item['seriales'] ?? []))
                ];
            }
            $totalGeneral = $subtotalNeto + $montoIva;
@@ -111,6 +112,7 @@ class VentasService {
            foreach ($detallesProcesados as $det) {
                $det['venta_id'] = $ventaId;
                $stmtDetalle->execute($det);
+               $ventaDetalleId = (int)$db->lastInsertId();
                // Rebajar inventario y registrar Kardex si aplica
                if ($afectaStock) {
                    InventarioService::registrarMovimiento(
@@ -124,6 +126,17 @@ class VentasService {
                        (int)($cabecera['usuario_id'] ?? 1),
                        "Venta Doc: {$cabecera['numero_documento']}"
                    );
+                   // Trazabilidad: despachar seriales/IMEI asignados al renglón
+                   if (!empty($det['seriales'])) {
+                       SerialesService::despacharSerialesVenta(
+                           $ventaId,
+                           $ventaDetalleId,
+                           (int)$det['producto_id'],
+                           $depositoId,
+                           $det['seriales'],
+                           $clienteId
+                       );
+                   }
                }
            }
             // 5. Asentar en Cuentas por Cobrar si es a Crédito, o Registrar Cobro de Contado si es Contado

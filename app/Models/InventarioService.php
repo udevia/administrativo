@@ -32,8 +32,8 @@ class InventarioService {
             $existenciaAnterior = (float)$row['existencia']; 
         } 
  
-        $esEntrada = in_array($tipoMovimiento, ['ENTRADA_COMPRA', 'AJUSTE_POSITIVO', 'TRASLADO_DESTINO']); 
-        $esSalida  = in_array($tipoMovimiento, ['SALIDA_VENTA', 'AJUSTE_NEGATIVO', 'TRASLADO_ORIGEN']); 
+        $esEntrada = in_array($tipoMovimiento, ['ENTRADA_COMPRA', 'AJUSTE_POSITIVO', 'TRASLADO_DESTINO', 'ENTRADA_PRODUCCION']);
+        $esSalida  = in_array($tipoMovimiento, ['SALIDA_VENTA', 'AJUSTE_NEGATIVO', 'TRASLADO_ORIGEN', 'SALIDA_PRODUCCION']);
  
         if ($esEntrada) { 
             $existenciaPosterior = $existenciaAnterior + $cantidad; 

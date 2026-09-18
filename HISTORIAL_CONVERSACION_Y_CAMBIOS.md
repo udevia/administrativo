@@ -79,6 +79,43 @@ Para garantizar la independencia legal de la propiedad intelectual y eliminar re
 
 ---
 
+### Fase 8: Auditoría de Integridad del Código y Reparación (sesión de continuidad)
+Se realizó una auditoría estática completa (123 archivos PHP, 27 migraciones SQL, 70+ vistas) sobre el checkout del repositorio, detectando y corrigiendo los siguientes problemas:
+
+1. **Autoloader perdido en el checkout:** `vendor/autoload.php` (PSR-4 nativo) estaba ignorado por `.gitignore` y no existía en el repositorio, lo que impedía la carga de clases en cualquier clon nuevo.
+   - **Corrección:** se re-creó `vendor/autoload.php` y se eliminó `/vendor/` de `.gitignore` para que el repositorio sea autocontenido (sin necesidad de Composer, consistente con la filosofía Zero-Bloat).
+2. **Vistas truncadas a mitad de línea** (mismo fallo de exportación que se corrigió en Fase 1/4, pero recurrente en 3 archivos):
+   - `views/ecommerce/tienda.php` (21 rupturas de etiquetas HTML).
+   - `views/ecommerce/checkout_bancario.php` (6 rupturas + string JS de confirmación cortada).
+   - `views/preventa/app.php` (11 rupturas).
+   - **Corrección:** se reconstruyeron las etiquetas y atributos completos respetando el diseño Tailwind existente y todo el JavaScript Alpine (x-model, @click, fetch) que estaba intacto.
+3. **Endpoints con rutas API erróneas:**
+   - El endpoint CxP (`GET /api/maestros/proveedores/{id}/cxp`) consultaba la tabla inexistente `compras_facturas` y la columna inexistente `monto_total`. **Corrección:** ahora consulta `compras.total_general` (esquema 005).
+   - `ContabilidadController` usaba `contabilidad_puc` y `contabilidad_comprobantes_detalles`. **Corrección:** renombradas a `contabilidad_plan_cuentas` y `contabilidad_asientos_detalles` (esquema 019).
+4. **Tablas referenciadas por el código pero nunca creadas por migraciones:**
+   - `configuracion` (KV de canales/pasarelas/empresa) y `produccion_ordenes_consumo` (consumos BOM). **Corrección:** nueva migración `032_configuracion_consumos_produccion.sql` que crea ambas y amplía el ENUM `kardex_inventario.tipo_movimiento` con `SALIDA_PRODUCCION` / `ENTRADA_PRODUCCION`.
+   - `ProduccionService` insertaba en una tabla `kardex` inexistente con tipos de movimiento inválidos para el ENUM. **Corrección:** ahora usa `InventarioService::registrarMovimiento()` (actualiza `producto_deposito` + kardex atómicamente) con los nuevos tipos de producción.
+5. **Rutas sin vista:** `/ventas` y `/ventas/panel` apuntaban a `ventas/panel_ventas.php` (no existe). **Corrección:** ahora resuelven a `ventas/facturacion.php`.
+6. **E-commerce:** se registró `POST /api/ecommerce/pago-c2p` (conectado a `BankGatewayEngine::procesarDebitoInmediato`) y la vista/ruta `/tienda/pedido-exitoso` (`views/ecommerce/pedido_exitoso.php`), ambos usados por el checkout C2P.
+7. **Preventa móvil:** el JS llamaba a `/api/preventa/sync/{id}` y `/api/preventa/pedido` (no registrados). **Corrección:** alineado con las rutas reales `/api/preventa/sincronizar?vendedor_id=` y `/api/preventa/enviar-pedido`.
+8. **`run_migrations.php` solo ejecutaba la primera sentencia por archivo:** `App\Core\Database` no activaba `PDO::MYSQL_ATTR_MULTI_STATEMENTS` (el instalador sí), de modo que los archivos con varias sentencias (todos, casi) dejaban tablas sin crear al ejecutarse manualmente. **Corrección:** se activó la bandera en `Database::getConnection()`, consistente con el "soporte para multi-queries" documentado.
+9. **Integración del POS con Pedidos Web y trazabilidad de seriales** (parciales huérfanos):
+   - **Pedidos Web en el POS:** se montó `views/pos/pedidos_web_confirmados.php` como panel desplegable bajo la barra superior (botón "Pedidos Web" con contador en vivo). Se agregaron los endpoints `GET /api/ecommerce/pedidos-por-facturar` (listado de pedidos con pago recibido/validado sin factura) y `POST /api/ecommerce/facturar` (emite la factura fiscal convirtiendo el APARTADO del pedido vía `DocumentoVentaService::convertirDocumentoOrigen`, descuenta stock/kardex y avanza el flujo de despacho).
+   - **Conversión compartida:** la lógica de `VentasController::convertirDocumento` se extrajo a `DocumentoVentaService::convertirDocumentoOrigen()` para reutilizarla sin duplicar código (el endpoint manual conserva su comportamiento).
+   - **Escaneo masivo de seriales:** se montó `views/pos/modal_seriales.php` en el POS, accionable desde el modal de trazabilidad ("Escanear con pistola los N seriales"). Soporta ajuste de cantidad, detección de duplicados y límite por renglón; al confirmar asigna el vector de seriales al renglón.
+   - **Persistencia de seriales en la venta:** `VentasService::procesarVenta` ahora captura el ID de cada `ventas_detalles` y, para documentos que afectan stock, despacha los seriales asignados llamando a `SerialesService::despacharSerialesVenta()` (estado VENDIDO, garantía, `ventas_detalles_seriales`). El POS envía `seriales[]` por renglón en el payload de `POST /api/pos/procesar-venta`.
+   - **Nota de diseño:** `APARTADO` no afecta stock (reserva contable) y `FACTURA`/`NOTA_ENTREGA` sí, por lo que la conversión APARTADO→FACTURA del pedido web no produce doble descuento de inventario.
+10. **Preparación para despliegue en contenedor (Docker / Portainer):**
+    - **`Dockerfile` (raíz):** imagen `php:8.2-apache` con `pdo_mysql`, módulos `rewrite`+`headers`, ajustes PHP (uploads 64M, timezone America/Caracas), DocumentRoot en `public/` y entrypoint propio.
+    - **`docker/entrypoint.sh` + `docker/init_db.php`:** provisionamiento automático idempotente en el primer arranque: crea la BD, ejecuta las 28 migraciones, escribe `config/database.php` desde variables de entorno, crea el admin (ADMIN_USER/ADMIN_PASSWORD) y sella `storage/installed.lock` — todo reutilizando `InstallerService` (mismo código que el Setup Wizard).
+    - **`docker-compose.yml`:** stack de 2 servicios (`app` en puerto 8080 + `db` MariaDB 10.11 con healthcheck), volúmenes persistentes `db_data`/`app_config`/`app_storage` y variables de entorno documentadas.
+    - **`.env.example` y `README_CONTAINERS.md`:** guía completa de despliegue desde Portainer (Stacks), actualización, respaldos y montaje de licencia.
+    - **`config/database.php` fuera de Git:** se quitó del versionado (y de la imagen Docker) porque era un artefacto de entorno con credenciales de XAMPP; ahora lo genera el instalador web o el entrypoint del contenedor. En máquinas existentes el archivo local se conserva tal cual.
+
+**Limitación de esta sesión:** el entorno de auditoría no disponía de PHP/MySQL, por lo que la verificación fue estática (balance de llaves, parser HTML, cruces de rutas/clases/tablas). Se recomienda ejecutar `php tools/smoke_test_mi.php` y probar los módulos en un entorno con base de datos tras aplicar la migración 032.
+
+---
+
 ## 3. Comprobaciones y Pruebas Realizadas
 
 1. **Linter de Sintaxis PHP:** Los **102 archivos PHP** del proyecto pasaron la verificación con código de salida `0` (Cero errores de sintaxis).

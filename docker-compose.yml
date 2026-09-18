@@ -1,0 +1,63 @@
+# ====================================================================
+# mi ERP — Despliegue con Docker (compatible con Portainer / Stacks)
+#
+# Uso directo en el host:
+#   1. docker build -t mi-erp:latest .
+#   2. docker compose up -d
+#
+# Uso desde Portainer:
+#   1. En el host Docker (o por la shell de Portainer): git clone del repo
+#   2. docker build -t mi-erp:latest .
+#   3. Portainer -> Stacks -> "mi-erp" -> pegar este docker-compose.yml
+#      (o apuntar a la carpeta del repo) -> Deploy the stack
+#   4. Acceder en http://<IP-del-host>:8080
+# ====================================================================
+services:
+  app:
+    image: mi-erp:latest
+    # build: .            # Alternativa: descomentar y comentar "image" para
+                          # que docker compose construya la imagen él mismo.
+    container_name: mi_erp_app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USERNAME: mi_erp
+      DB_PASSWORD: ${DB_PASSWORD:-mi_erp_seguro}
+      DB_DATABASE: mi_admin_system
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador General}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app_config:/var/www/html/config
+      - app_storage:/var/www/html/storage
+    # Para producción, monté también su licencia real:
+    #   - /ruta/en/el/host/sistema.lic:/var/www/html/license/sistema.lic:ro
+
+  db:
+    image: mariadb:10.11
+    container_name: mi_erp_db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_seguro}
+      MARIADB_USER: mi_erp
+      MARIADB_PASSWORD: ${DB_PASSWORD:-mi_erp_seguro}
+      MARIADB_DATABASE: mi_admin_system
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  db_data:
+  app_config:
+  app_storage:

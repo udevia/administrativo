@@ -151,15 +151,17 @@ class ProduccionService {
                 ]);
 
                 // Descontar materia prima del inventario (Opcional, en 'EN_PROCESO' podría ser reservado, aquí lo descontamos directo)
-                $db->prepare("
-                    INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, deposito_id, documento_referencia)
-                    VALUES (?, 'SALIDA', ?, ?, ?)
-                ")->execute([
-                    $mat['material_id'],
-                    $cantConsumir,
-                    $depositoId,
-                    $numOrden
-                ]);
+                InventarioService::registrarMovimiento(
+                    (int)$mat['material_id'],
+                    (int)$depositoId,
+                    'SALIDA_PRODUCCION',
+                    'ORDEN_PRODUCCION',
+                    (string)$numOrden,
+                    (float)$cantConsumir,
+                    (float)$costoUnitario,
+                    (int)$userId,
+                    'Consumo de materia prima (BOM)'
+                );
             }
 
             $db->commit();
@@ -206,16 +208,17 @@ class ProduccionService {
             ]);
 
             // Ingresar Producto Terminado al Inventario
-            $db->prepare("
-                INSERT INTO kardex (producto_id, tipo_movimiento, cantidad, costo_unitario, deposito_id, documento_referencia)
-                VALUES (?, 'ENTRADA', ?, ?, ?, ?)
-            ")->execute([
-                $formula['producto_terminado_id'],
-                $cantidadReal,
-                $costoUnitarioTerminado,
-                $orden['deposito_id'] ?: 1,
-                $orden['numero_orden']
-            ]);
+            InventarioService::registrarMovimiento(
+                (int)$formula['producto_terminado_id'],
+                (int)($orden['deposito_id'] ?: 1),
+                'ENTRADA_PRODUCCION',
+                'ORDEN_PRODUCCION',
+                (string)$orden['numero_orden'],
+                (float)$cantidadReal,
+                (float)$costoUnitarioTerminado,
+                (int)($orden['usuario_id'] ?? 1),
+                'Producto terminado (BOM)'
+            );
 
             $db->commit();
         } catch (Exception $e) {

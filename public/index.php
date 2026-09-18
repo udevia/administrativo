@@ -81,8 +81,8 @@ $router->view('', 'ventas/pos.php');
 $router->view('ventas/pos', 'ventas/pos.php');
 $router->view('pos', 'ventas/pos.php');
 // Módulo de Ventas: Vistas individuales por tipo de documento
-$router->view('ventas', 'ventas/panel_ventas.php');
-$router->view('ventas/panel', 'ventas/panel_ventas.php');
+$router->view('ventas', 'ventas/facturacion.php');
+$router->view('ventas/panel', 'ventas/facturacion.php');
 $router->view('ventas/facturacion', 'ventas/facturacion.php');
 $router->view('ventas/devoluciones', 'ventas/devoluciones.php');
 $router->view('ventas/pedidos', 'ventas/pedidos.php');
@@ -107,6 +107,7 @@ $router->view('configuracion/respaldos', 'configuracion/respaldos_sync.php');
 $router->view('auditoria/logs', 'auditoria/visor_logs.php');
 $router->view('tienda', 'ecommerce/tienda.php');
 $router->view('tienda/checkout', 'ecommerce/checkout_bancario.php');
+$router->view('tienda/pedido-exitoso', 'ecommerce/pedido_exitoso.php');
 $router->view('preventa/app', 'preventa/app.php');
 
 // Vistas de Archivos Maestros
@@ -245,6 +246,36 @@ $router->post('api/activos-fijos/depreciar-mensual', [ActivosFijosController::cl
 // E-commerce
 $router->get('api/ecommerce/catalogo', [EcommerceController::class, 'catalogo']);
 $router->post('api/ecommerce/pedido', [EcommerceController::class, 'crearPedidoWeb']);
+$router->post('api/ecommerce/facturar', [EcommerceController::class, 'facturarPedido']);
+$router->get('api/ecommerce/pedidos-por-facturar', [EcommerceController::class, 'pedidosPorFacturar']);
+$router->post('api/ecommerce/pago-c2p', function() {
+    header('Content-Type: application/json');
+    try {
+        $in = json_decode((string)file_get_contents('php://input'), true) ?? [];
+        if (empty($in['telefono_pagador']) || empty($in['cedula_pagador']) || empty($in['token_otp'])) {
+            http_response_code(422);
+            echo json_encode(['status' => 'error', 'message' => 'Datos del pago C2P incompletos.']);
+            return;
+        }
+        $res = \App\Core\BankGatewayEngine::procesarDebitoInmediato(
+            (string)$in['banco_codigo'],
+            [
+                'banco_origen'     => (string)$in['banco_origen'],
+                'telefono_pagador' => (string)$in['telefono_pagador'],
+                'cedula_pagador'   => (string)$in['cedula_pagador'],
+                'token_otp'        => (string)$in['token_otp'],
+                'monto_bs'         => (float)($in['monto_bs'] ?? 0),
+                'tasa_cambio'      => (float)($in['tasa_cambio'] ?? \App\Core\Database::getTasaActualUsd()),
+                'pedido_web_id'    => (int)($in['pedido_web_id'] ?? 0),
+                'numero_orden'     => (string)($in['numero_orden'] ?? '')
+            ]
+        );
+        echo json_encode(array_merge(['status' => 'success'], $res));
+    } catch (\Throwable $e) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+});
 
 // Suite de Reportes
 $router->get('api/reportes/{tipo}', [ReportesController::class, 'consultar']);
@@ -316,9 +347,9 @@ $router->get('api/maestros/proveedores/{id}/cxp', function(int $id) {
         $db = \App\Core\Database::getConnection();
         $stmt = $db->prepare("
             SELECT c.id, c.numero_factura, c.fecha_emision, c.fecha_vencimiento,
-                   c.monto_total, c.saldo_pendiente,
+                   c.total_general, c.saldo_pendiente,
                    CASE WHEN c.fecha_vencimiento < CURDATE() AND c.saldo_pendiente > 0 THEN 1 ELSE 0 END AS vencido
-            FROM compras_facturas c
+            FROM compras c
             WHERE c.proveedor_id = :id AND c.saldo_pendiente > 0 AND c.estado != 'ANULADA'
             ORDER BY c.fecha_vencimiento ASC
         ");

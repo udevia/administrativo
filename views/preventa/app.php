@@ -17,17 +17,17 @@
            </h1>
            <p class="text-xs text-blue-200" x-text="'Vendedor: ' + vendedor.nombre"></p>
        </div>
-       <button @click="sincronizar()" class="bg-blue-800 p-2 rounded-lg text-xs flex items-center gap-1 active:scale-95
+       <button @click="sincronizar()" class="bg-blue-800 p-2 rounded-lg text-xs flex items-center gap-1 active:scale-95 transition">
            <i class="fa-solid fa-rotate" :class="sincronizando ? 'fa-spin' : ''"></i> Sync
        </button>
    </header>
    <!-- Contenedor Principal -->
    <main class="p-3 pb-24 space-y-3">
-       
+
        <!-- Selección de Cliente -->
        <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-200">
            <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase">Cliente de la Ruta</label>
-           <select x-model="pedido.cliente_id" @change="actualizarListaPrecioCliente()" class="w-full text-sm border-gr
+           <select x-model="pedido.cliente_id" @change="actualizarListaPrecioCliente()" class="w-full text-sm border-gray-300 rounded-lg p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                <option value="">-- Seleccionar Cliente --</option>
                <template x-for="c in clientes" :key="c.id">
                    <option :value="c.id" x-text="c.razon_social + ' (' + c.documento_fiscal + ')'"></option>
@@ -40,7 +40,7 @@
                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
                    <i class="fa-solid fa-magnifying-glass"></i>
                </span>
-               <input type="text" x-model="filtroProducto" placeholder="Buscar por código o nombre..." class="w-full pl
+               <input type="text" x-model="filtroProducto" placeholder="Buscar por código o nombre..." class="w-full pl-8 pr-2 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
            </div>
            <div class="divide-y divide-gray-100 max-h-60 overflow-y-auto">
                <template x-for="p in productosFiltrados" :key="p.id">
@@ -48,12 +48,12 @@
                        <div class="flex-1">
                            <p class="text-xs font-bold text-gray-900 leading-tight" x-text="p.descripcion"></p>
                            <div class="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
-                               <span class="font-mono text-blue-600 font-bold" x-text="'$' + p.precio_actual.toFixed(2)
+                               <span class="font-mono text-blue-600 font-bold" x-text="'$' + p.precio_actual.toFixed(2)"></span>
                                <span>•</span>
-                               <span :class="p.stock_disponible > 0 ? 'text-emerald-600' : 'text-red-500'" x-text="'Dis
+                               <span :class="p.stock_disponible > 0 ? 'text-emerald-600' : 'text-red-500'" x-text="'Disponible: ' + p.stock_disponible"></span>
                            </div>
                        </div>
-                       <button @click="agregarAlPedido(p)" :disabled="p.stock_disponible <= 0" class="bg-blue-600 activ
+                       <button @click="agregarAlPedido(p)" :disabled="p.stock_disponible <= 0" class="bg-blue-600 active:bg-blue-700 text-white rounded-lg p-2 disabled:opacity-40 transition">
                            <i class="fa-solid fa-plus text-xs"></i>
                        </button>
 
@@ -63,17 +63,17 @@
        </div>
        <!-- Resumen de Ítems en el Pedido -->
        <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-200" x-show="pedido.items.length > 0">
-           <h3 class="font-bold text-xs uppercase text-gray-500 mb-2">Ítems del Pedido (<span x-text="pedido.items.leng
+           <h3 class="font-bold text-xs uppercase text-gray-500 mb-2">Ítems del Pedido (<span x-text="pedido.items.length"></span>)</h3>
            <div class="space-y-2">
                <template x-for="(item, idx) in pedido.items" :key="idx">
                    <div class="bg-gray-50 p-2.5 rounded-lg flex justify-between items-center border">
                        <div class="flex-1 pr-2">
                            <p class="text-xs font-semibold text-gray-800" x-text="item.descripcion"></p>
-                           <p class="text-[11px] text-gray-500 font-mono" x-text="'$' + item.precio_unitario + ' c/u'">
+                           <p class="text-[11px] text-gray-500 font-mono" x-text="'$' + item.precio_unitario + ' c/u'"></p>
                        </div>
                        <div class="flex items-center gap-2">
-                           <input type="number" min="1" :max="item.max_stock" x-model.number="item.cantidad" class="w-1
-                           <button @click="eliminarItem(idx)" class="text-red-500 p-1"><i class="fa-solid fa-trash-can"
+                           <input type="number" min="1" :max="item.max_stock" x-model.number="item.cantidad" class="w-14 border rounded text-center p-1 text-xs">
+                           <button @click="eliminarItem(idx)" class="text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button>
                        </div>
                    </div>
                </template>
@@ -86,7 +86,7 @@
            <span class="text-[10px] text-gray-400 block uppercase font-bold">Total a Comprometer</span>
            <span class="text-base font-extrabold font-mono text-blue-900" x-text="'$' + totalPedido.toFixed(2)"></span>
        </div>
-       <button @click="transmitirApartado()" :disabled="pedido.items.length === 0 || !pedido.cliente_id || transmitiend
+       <button @click="transmitirApartado()" :disabled="pedido.items.length === 0 || !pedido.cliente_id || transmitiendo" class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition">
            <i class="fa-solid fa-cloud-arrow-up" x-show="!transmitiendo"></i>
            <i class="fa-solid fa-spinner fa-spin" x-show="transmitiendo"></i>
            <span>Comprometer Stock</span>
@@ -111,7 +111,7 @@
            },
            sincronizar() {
                this.sincronizando = true;
-               fetch(`/api/preventa/sync/${this.vendedor.id}`)
+               fetch(`/api/preventa/sincronizar?vendedor_id=${this.vendedor.id}`)
                    .then(r => r.json())
                    .then(res => {
                        this.clientes = res.data.clientes || [];
@@ -127,8 +127,8 @@
 
                if (!this.filtroProducto.trim()) return this.productos;
                const txt = this.filtroProducto.toLowerCase();
-               return this.productos.filter(p => 
-                   p.descripcion.toLowerCase().includes(txt) || 
+               return this.productos.filter(p =>
+                   p.descripcion.toLowerCase().includes(txt) ||
                    p.codigo.toLowerCase().includes(txt)
                );
            },
@@ -163,7 +163,7 @@
            async transmitirApartado() {
                this.transmitiendo = true;
                try {
-                   const res = await fetch('/api/preventa/pedido', {
+                   const res = await fetch('/api/preventa/enviar-pedido', {
                        method: 'POST',
                        headers: { 'Content-Type': 'application/json' },
                        body: JSON.stringify(this.pedido)

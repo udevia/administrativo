@@ -3,8 +3,58 @@ namespace App\Models;
 use App\Core\Database;
 use App\Models\InventarioService;
 use App\Models\Cliente;
+use App\Models\VentasService;
 use Exception;
 class DocumentoVentaService {
+   /**
+    * Convierte un documento de origen (APARTADO, PEDIDO, PRESUPUESTO, FACTURA...)
+    * en un nuevo documento del tipo indicado, copiando sus renglones.
+    *
+    * Usado por:
+    *  - POST /api/ventas/{id}/convertir (conversión manual en Facturación)
+    *  - POST /api/ecommerce/facturar (emisión de factura fiscal desde
+    *    el apartado de un pedido web validado en el POS)
+    */
+   public static function convertirDocumentoOrigen(int $origenId, string $nuevoTipo, int $usuarioId): array {
+       $db = Database::getConnection();
+       $stmt = $db->prepare("SELECT * FROM ventas WHERE id = :id");
+       $stmt->execute(['id' => $origenId]);
+       $doc = $stmt->fetch(\PDO::FETCH_ASSOC);
+       if (!$doc) {
+           throw new Exception("Documento origen ID {$origenId} no encontrado.");
+       }
+
+       // Obtener detalles del documento origen
+       $stmtDet = $db->prepare("SELECT * FROM ventas_detalles WHERE venta_id = :id");
+       $stmtDet->execute(['id' => $origenId]);
+       $detalles = $stmtDet->fetchAll(\PDO::FETCH_ASSOC);
+       if (empty($detalles)) {
+           throw new Exception("El documento origen no tiene renglones para convertir.");
+       }
+
+       // Crear nuevo documento
+       $nuevoCabecera = $doc;
+       $nuevoCabecera['tipo_documento'] = $nuevoTipo;
+       $nuevoCabecera['numero_documento'] = strtoupper(substr($nuevoTipo, 0, 3)) . '-' . date('ymd') . '-' . rand(1000, 9999);
+       $nuevoCabecera['documento_origen_id'] = $origenId;
+       $nuevoCabecera['usuario_id'] = $usuarioId;
+       $nuevoCabecera['fecha_emision'] = date('Y-m-d');
+       $nuevoCabecera['control_fiscal'] = null;
+       unset($nuevoCabecera['id'], $nuevoCabecera['created_at'], $nuevoCabecera['updated_at']);
+       if (isset($nuevoCabecera['estado'])) {
+           unset($nuevoCabecera['estado']); // VentasService lo calcula según la condición de pago
+       }
+
+       $nuevosItems = array_map(fn($d) => [
+           'producto_id'         => $d['producto_id'],
+           'cantidad'            => $d['cantidad'],
+           'precio_unitario'     => $d['precio_unitario'],
+           'porcentaje_descuento'=> $d['porcentaje_descuento'] ?? 0,
+           'porcentaje_iva'      => $d['porcentaje_iva']
+       ], $detalles);
+
+       return VentasService::procesarVenta($nuevoCabecera, $nuevosItems);
+   }
    public static function procesar(array $cabecera, array $items): array {
        $db = Database::getConnection();
        try {

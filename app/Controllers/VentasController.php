@@ -225,38 +225,7 @@ class VentasController {
                 echo json_encode(['status' => 'error', 'message' => 'Tipo de documento destino inválido.']);
                 return;
             }
-            $db = Database::getConnection();
-            $stmt = $db->prepare("SELECT * FROM ventas WHERE id = :id");
-            $stmt->execute(['id' => $id]);
-            $doc = $stmt->fetch(\PDO::FETCH_ASSOC);
-            if (!$doc) {
-                http_response_code(404);
-                echo json_encode(['status' => 'error', 'message' => 'Documento origen no encontrado.']);
-                return;
-            }
-
-            // Obtener detalles del documento origen
-            $stmtDet = $db->prepare("SELECT * FROM ventas_detalles WHERE venta_id = :id");
-            $stmtDet->execute(['id' => $id]);
-            $detalles = $stmtDet->fetchAll(\PDO::FETCH_ASSOC);
-
-            // Crear nuevo documento
-            $nuevoCabecera = $doc;
-            $nuevoCabecera['tipo_documento'] = $nuevoTipo;
-            $nuevoCabecera['numero_documento'] = strtoupper(substr($nuevoTipo, 0, 3)) . '-' . date('ymd') . '-' . rand(1000, 9999);
-            $nuevoCabecera['documento_origen_id'] = $id;
-            $nuevoCabecera['estado'] = 'EMITIDA';
-            unset($nuevoCabecera['id'], $nuevoCabecera['created_at'], $nuevoCabecera['updated_at']);
-
-            $nuevosItems = array_map(fn($d) => [
-                'producto_id'         => $d['producto_id'],
-                'cantidad'            => $d['cantidad'],
-                'precio_unitario'     => $d['precio_unitario'],
-                'porcentaje_descuento'=> $d['porcentaje_descuento'] ?? 0,
-                'porcentaje_iva'      => $d['porcentaje_iva']
-            ], $detalles);
-
-            $resultado = VentasService::procesarVenta($nuevoCabecera, $nuevosItems);
+            $resultado = \App\Models\DocumentoVentaService::convertirDocumentoOrigen($id, $nuevoTipo, 1);
             echo json_encode([
                 'status'  => 'success',
                 'message' => "Documento convertido a {$nuevoTipo} exitosamente.",

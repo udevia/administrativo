@@ -17,12 +17,12 @@
                <span class="font-extrabold text-lg text-slate-900 tracking-tight">Mi Tienda Online</span>
            </div>
            <div class="flex-1 max-w-md hidden md:block">
-               <input type="text" x-model="busqueda" @input.debounce.300ms="cargarCatalogo()" placeholder="Buscar produ
+               <input type="text" x-model="busqueda" @input.debounce.300ms="cargarCatalogo()" placeholder="Buscar productos..." class="w-full bg-slate-100 border-0 rounded-full px-4 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
            </div>
            <div class="flex items-center gap-4">
-               <button @click="abrirCarrito = true" class="relative bg-blue-50 text-blue-600 p-2.5 rounded-full hover:b
+               <button @click="abrirCarrito = true" class="relative bg-blue-50 text-blue-600 p-2.5 rounded-full hover:bg-blue-100 transition">
                    <i class="fa-solid fa-cart-shopping text-base"></i>
-                   <span x-show="carrito.length > 0" class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] 
+                   <span x-show="carrito.length > 0" class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center" x-text="carrito.length"></span>
                </button>
            </div>
 
@@ -32,7 +32,7 @@
    <main class="max-w-7xl mx-auto px-4 py-6">
        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
            <template x-for="p in productos" :key="p.id">
-               <div class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-
+               <div class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col p-3">
                    <div>
                        <div class="h-32 bg-slate-100 rounded-xl mb-3 flex items-center justify-center overflow-hidden">
                            <template x-if="p.imagen_url">
@@ -42,15 +42,15 @@
                                <i class="fa-solid fa-box text-3xl text-slate-300"></i>
                            </template>
                        </div>
-                       <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5" x-text="p.categoria_no
-                       <h3 class="font-bold text-xs text-slate-900 line-clamp-2 leading-snug" x-text="p.descripcion"></
+                       <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5" x-text="p.categoria_nombre"></span>
+                       <h3 class="font-bold text-xs text-slate-900 line-clamp-2 leading-snug" x-text="p.descripcion"></h3>
                    </div>
                    <div class="mt-3 pt-3 border-t border-slate-100">
                        <div class="flex justify-between items-baseline mb-2">
-                           <span class="font-extrabold font-mono text-sm text-blue-900" x-text="'$' + Number(p.precio_v
-                           <span class="text-[10px] text-slate-400 font-mono" x-text="'Ref: Bs. ' + (p.precio_venta * t
+                           <span class="font-extrabold font-mono text-sm text-blue-900" x-text="'$' + Number(p.precio_venta).toFixed(2)"></span>
+                           <span class="text-[10px] text-slate-400 font-mono" x-text="'Ref: Bs. ' + (p.precio_venta * tasa).toFixed(2)"></span>
                        </div>
-                       <button @click="agregarAlCarrito(p)" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95
+                       <button @click="agregarAlCarrito(p)" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 transition rounded-xl py-2 text-xs font-bold text-white flex items-center justify-center gap-1.5">
                            <i class="fa-solid fa-plus text-[10px]"></i> Agregar
                        </button>
                    </div>
@@ -66,7 +66,7 @@
                <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
                    <i class="fa-solid fa-bag-shopping text-blue-600"></i> Carrito de Compras
                </h3>
-               <button @click="abrirCarrito = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-
+               <button @click="abrirCarrito = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
            </div>
            <!-- Ítems -->
            <div class="p-4 flex-1 overflow-y-auto space-y-3">
@@ -74,35 +74,35 @@
                    <div class="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                        <div class="flex-1 pr-2">
                            <p class="text-xs font-bold text-slate-900 leading-tight" x-text="item.descripcion"></p>
-                           <span class="text-xs font-mono font-bold text-blue-700" x-text="'$' + (item.precio_venta * i
+                           <span class="text-xs font-mono font-bold text-blue-700" x-text="'$' + (item.precio_venta * item.cantidad).toFixed(2)"></span>
                        </div>
                        <div class="flex items-center gap-2">
-                           <input type="number" min="1" x-model.number="item.cantidad" class="w-12 border rounded-lg p-
-                           <button @click="carrito.splice(idx, 1)" class="text-red-500 hover:text-red-700 p-1"><i class
+                           <input type="number" min="1" x-model.number="item.cantidad" class="w-12 border rounded-lg p-1 text-center text-xs">
+                           <button @click="carrito.splice(idx, 1)" class="text-red-500 hover:text-red-700 p-1"><i class="fa-solid fa-trash-can text-xs"></i></button>
                        </div>
                    </div>
                </template>
-               <div x-show="carrito.length === 0" class="text-center py-16 text-slate-400 text-xs">Tu carrito está vací
+               <div x-show="carrito.length === 0" class="text-center py-16 text-slate-400 text-xs">Tu carrito está vacío</div>
            </div>
            <!-- Formulario de Pago / Checkout -->
            <div class="p-4 border-t bg-slate-50 space-y-3" x-show="carrito.length > 0">
                <div class="space-y-1.5 text-xs font-mono">
                    <div class="flex justify-between font-bold text-sm text-slate-900">
                        <span>Total a Pagar:</span>
-                       <span class="text-blue-900" x-text="'$' + totalCarrito.toFixed(2) + ' (Bs. ' + (totalCarrito * t
+                       <span class="text-blue-900" x-text="'$' + totalCarrito.toFixed(2) + ' (Bs. ' + (totalCarrito * tasa).toFixed(2) + ')'"></span>
                    </div>
                </div>
                <div class="space-y-2 pt-2 border-t text-xs">
 
                    <label class="block font-bold text-slate-700 uppercase text-[10px]">Método de Pago:</label>
-                   <select x-model="checkout.metodo_pago" class="w-full border rounded-lg p-2 text-xs bg-white font-med
+                   <select x-model="checkout.metodo_pago" class="w-full border rounded-lg p-2 text-xs bg-white font-medium">
                        <option value="PAGO_MOVIL">📲 Pago Móvil</option>
                        <option value="ZELLE">💵 Zelle</option>
                        <option value="TRANSFERENCIA_VES">🏦 Transferencia Bancaria</option>
                    </select>
-                   <input type="text" x-model="checkout.referencia_pago" placeholder="N° de Referencia de Pago" class="
+                   <input type="text" x-model="checkout.referencia_pago" placeholder="N° de Referencia de Pago" class="w-full border rounded-lg p-2 text-xs">
                </div>
-               <button @click="confirmarPedidoWeb()" :disabled="procesando || !checkout.referencia_pago" class="w-full 
+               <button @click="confirmarPedidoWeb()" :disabled="procesando || !checkout.referencia_pago" class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 text-xs transition">
                    <i class="fa-solid fa-lock" x-show="!procesando"></i>
                    <i class="fa-solid fa-spinner fa-spin" x-show="procesando"></i>
                    <span>Confirmar Compra y Reservar Stock</span>

@@ -17,9 +17,10 @@
                     <p class="text-xs font-medium text-slate-800" x-text="p.cliente_nombre"></p>
                     <span class="text-[11px] text-slate-500 font-mono" x-text="'Ref: ' + p.referencia_pago + ' | $' + Number(p.total_general).toFixed(2)"></span>
                 </div>
-                <button @click="generarFacturaFiscal(p)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                    <i class="fa-solid fa-receipt"></i>
-                    <span>Emitir Factura</span>
+                <button @click="generarFacturaFiscal(p)" :disabled="procesandoId !== null" class="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-receipt" x-show="procesandoId !== p.id"></i>
+                    <i class="fa-solid fa-spinner fa-spin" x-show="procesandoId === p.id"></i>
+                    <span x-text="procesandoId === p.id ? 'Emitiendo...' : 'Emitir Factura'"></span>
                 </button>
             </div>
         </template>
@@ -28,3 +29,53 @@
         </div>
     </div>
 </div>
+<script>
+function pedidosWebPosApp() {
+    return {
+        pedidos: [],
+        cargando: false,
+        procesandoId: null,
+        init() {
+            this.cargarPedidosConfirmados();
+        },
+        async cargarPedidosConfirmados() {
+            this.cargando = true;
+            try {
+                const res = await fetch('/api/ecommerce/pedidos-por-facturar');
+                const json = await res.json();
+                this.pedidos = json.data || [];
+                window.dispatchEvent(new CustomEvent('pedidos-web-cargados', { detail: this.pedidos.length }));
+            } catch (e) {
+                this.pedidos = [];
+            } finally {
+                this.cargando = false;
+            }
+        },
+        async generarFacturaFiscal(p) {
+            if (!confirm(`¿Emitir FACTURA FISCAL para el pedido web ${p.numero_orden_web}?\nCliente: ${p.cliente_nombre}\nTotal: $${Number(p.monto_total_usd).toFixed(2)}\n\nSe descontará el stock reservado y se registrará en kardex.`)) return;
+            this.procesandoId = p.id;
+            try {
+                const res = await fetch('/api/ecommerce/facturar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pedido_id: p.id })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert(`✅ ${data.message}\nFactura: ${data.numero_factura || 'N/D'} | Total: $${Number(data.total_usd || 0).toFixed(2)}`);
+                    if (data.venta_id && confirm('¿Desea imprimir la factura fiscal emitida?')) {
+                        window.open(`/api/ventas/${data.venta_id}/documento`, '_blank');
+                    }
+                    this.cargarPedidosConfirmados();
+                } else {
+                    alert('Error: ' + (data.message || 'No se pudo emitir la factura.'));
+                }
+            } catch (e) {
+                alert('Error de conexión: ' + e.message);
+            } finally {
+                this.procesandoId = null;
+            }
+        }
+    }
+}
+</script>

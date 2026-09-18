@@ -16,13 +16,19 @@ ob_start();
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <button @click="cargarPedidosWeb()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-2 border border-indigo-200">
-                <i class="fa-solid fa-globe"></i> Pedidos Web (<span x-text="pedidosWeb.length"></span>)
+            <button @click="abrirPanelPedidosWeb()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-2 border border-indigo-200">
+                <i class="fa-solid fa-globe"></i> Pedidos Web (<span x-text="pedidosWebCount"></span>)
+                <i class="fa-solid fa-chevron-down text-[10px] transition" :class="panelPedidosWebAbierto ? 'rotate-180' : ''"></i>
             </button>
             <button @click="imprimirCierreZ()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2">
                 <i class="fa-solid fa-print"></i> Reporte Z / Arqueo
             </button>
         </div>
+    </div>
+
+    <!-- Pedidos Web Validados: Panel desplegable (facturación de pedidos online) -->
+    <div x-show="panelPedidosWebAbierto" x-cloak class="bg-white rounded-2xl shadow-sm border border-emerald-200 overflow-hidden">
+        <?php require __DIR__ . '/../pos/pedidos_web_confirmados.php'; ?>
     </div>
 
     <!-- Grid Principal: Renglones + Totales -->
@@ -306,6 +312,13 @@ ob_start();
                         <label class="block font-bold text-slate-600 mb-1">O ingresar serial manualmente:</label>
                         <input type="text" x-model="serialSeleccionado" placeholder="Ingrese serial/IMEI..." class="w-full border border-purple-200 bg-purple-50 rounded-xl p-2.5 font-mono focus:outline-none focus:border-purple-500">
                     </div>
+                    <div class="mt-2 pt-2 border-t border-purple-100 flex justify-end">
+                        <button type="button" @click="abrirEscaneoSeriales()"
+                                class="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-barcode-scan"></i>
+                            <span x-text="'Escanear con pistola los ' + itemSerialActual.cantidad + ' serial(es) del renglón'"></span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Lote FEFO -->
@@ -344,6 +357,9 @@ ob_start();
             </div>
         </div>
     </div>
+
+    <!-- Modal Escaneo Masivo de Seriales (pistola de código de barras) -->
+    <?php require __DIR__ . '/../pos/modal_seriales.php'; ?>
 </div>
 
 <script>
@@ -357,6 +373,12 @@ function posApp() {
         procesando: false,
         modalCobroAbierto: false,
         modalSerialLote: false,
+        panelPedidosWebAbierto: false,
+        pedidosWebCount: 0,
+        modalSerialesAbierto: false,
+        productoSerialActual: null,
+        serialesEscaneados: [],
+        inputSerial: '',
         itemSerialActual: null,
         serialSeleccionado: '',
         loteSeleccionado: '',
@@ -382,6 +404,7 @@ function posApp() {
             vuelto_usd: 0
         },
         async init() {
+            window.addEventListener('pedidos-web-cargados', (e) => { this.pedidosWebCount = e.detail; });
             await Promise.all([this.cargarClientes(), this.precargarProductos()]);
         },
         async cargarClientes() {
@@ -445,6 +468,7 @@ function posApp() {
                 porcentaje_iva: Number(p.porcentaje_iva || 16),
                 exento_iva: Number(p.exento_iva || 0),
                 serial_seleccionado: null,
+                seriales_asignados: null,
                 lote_seleccionado: null
             };
             const existe = this.items.find(i => i.producto_id === p.id && !p.maneja_seriales);
@@ -565,7 +589,8 @@ function posApp() {
                         cantidad: i.cantidad,
                         precio_unitario: i.precio_unitario,
                         porcentaje_descuento: 0,
-                        porcentaje_iva: i.porcentaje_iva
+                        porcentaje_iva: i.porcentaje_iva,
+                        seriales: i.seriales_asignados || (i.serial_seleccionado ? [i.serial_seleccionado] : [])
                     }))
                 };
 
@@ -608,8 +633,69 @@ function posApp() {
                 alert('Error al consultar Cierre Z: ' + e.message);
             }
         },
+        // Legacy - keep for backward compat
         cargarPedidosWeb() {
-            alert('Consultando pedidos web sincronizados...');
+            this.abrirPanelPedidosWeb();
+        },
+        abrirPanelPedidosWeb() {
+            this.panelPedidosWebAbierto = !this.panelPedidosWebAbierto;
+            if (this.panelPedidosWebAbierto) this.actualizarContadorPedidosWeb();
+        },
+        async actualizarContadorPedidosWeb() {
+            try {
+                const res = await fetch('/api/ecommerce/pedidos-por-facturar');
+                const json = await res.json();
+                this.pedidosWebCount = (json.data || []).length;
+            } catch(e) {
+                this.pedidosWebCount = 0;
+            }
+        },
+        // --- Escaneo masivo de seriales (pistola de código de barras) ---
+        abrirEscaneoSeriales() {
+            const item = this.itemSerialActual;
+            if (!item) return;
+            this.productoSerialActual = { ...item, cantidad: Math.max(1, Number(item.cantidad || 1)) };
+            this.serialesEscaneados = [];
+            this.inputSerial = '';
+            this.modalSerialLote = false; // El escáner reemplaza al modal simple
+            this.modalSerialesAbierto = true;
+        },
+        agregarSerialEscaneado() {
+            const s = this.inputSerial.trim();
+            if (!s) return;
+            if (this.serialesEscaneados.includes(s)) {
+                alert('El serial ' + s + ' ya fue escaneado.');
+                this.inputSerial = '';
+                return;
+            }
+            if (this.productoSerialActual && this.serialesEscaneados.length >= this.productoSerialActual.cantidad) {
+                alert('Ya alcanzó la cantidad del renglón (' + this.productoSerialActual.cantidad + ').');
+                return;
+            }
+            this.serialesEscaneados.push(s);
+            this.inputSerial = '';
+        },
+        cancelarAsignacionSeriales() {
+            this.modalSerialesAbierto = false;
+            this.serialesEscaneados = [];
+            this.inputSerial = '';
+            this.productoSerialActual = null;
+            this.modalSerialLote = true; // Vuelve al modal de selección simple
+        },
+        confirmarSerialesRenglon() {
+            if (!this.productoSerialActual || this.serialesEscaneados.length !== this.productoSerialActual.cantidad) return;
+            if (this._pendingItem) {
+                this._pendingItem.cantidad = this.productoSerialActual.cantidad;
+                this._pendingItem.serial_seleccionado = this.serialesEscaneados[0];
+                this._pendingItem.seriales_asignados = [...this.serialesEscaneados];
+                this.items.push({ ...this._pendingItem });
+                this._pendingItem = null;
+            }
+            this.modalSerialLote = false;
+            this.modalSerialesAbierto = false;
+            this.serialesEscaneados = [];
+            this.inputSerial = '';
+            this.productoSerialActual = null;
         }
     }
 }

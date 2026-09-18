@@ -59,7 +59,7 @@ Las migraciones se encuentran en `database/migrations/` ordenadas secuencialment
 14. `019_contabilidad_integrada.sql`: `contabilidad_plan_cuentas` (PUC a 4 niveles), `contabilidad_mapeo_enlace`, `contabilidad_comprobantes`, `contabilidad_asientos_detalles`.
 15. `020_contabilidad_profesional.sql`: `contador_clientes_empresas`, `contabilidad_periodos` (Multiempresa para el contador).
 16. `021_nomina_integrada.sql`: `nomina_empleados`, `nomina_conceptos`, `nomina_periodos`, `nomina_recibos`, `nomina_recibos_detalles`.
-17. `022_produccion_bom.sql`: `produccion_formulas`, `produccion_formulas_detalles`, `produccion_ordenes`, `produccion_ordenes_consumos`.
+17. `022_produccion_bom.sql`: `produccion_formulas`, `produccion_formulas_detalles`, `produccion_ordenes`.
 18. `023_ecommerce_integrado.sql`: `ecommerce_config`, `ecommerce_usuarios`, `ecommerce_pedidos`, `ecommerce_pedidos_detalles`.
 19. `024_pasarela_bancaria_apis.sql`: `pasarelas_bancarias_config`, `pasarelas_transacciones_log` (Banesco y Banco Plaza C2P).
 20. `025_modulo_servicios_sat.sql`: `sat_tipos_servicio`, `sat_campos_personalizados`, `sat_estados_flujo`, `sat_ordenes_trabajo`, `sat_ordenes_detalles`.
@@ -68,6 +68,10 @@ Las migraciones se encuentran en `database/migrations/` ordenadas secuencialment
 23. `028_auditoria_notificaciones.sql`: `auditoria_logs`, `notificaciones_cola`.
 24. `029_modo_whatsapp.sql`: Configuración de proveedores Meta Cloud API / WhatsApp Web.
 25. `030_telegram_bot_integration.sql`: `telegram_bot_config`, `telegram_usuarios_vinculados`.
+26. `031_sync_lotes_capas_vistas.sql`: `sync_queue`, `configuracion_sync`, `producto_lotes`, `inventario_capas`, `respaldos_sistema` + vistas de compatibilidad `inventario_existencias` y `ordenes_compra`.
+27. `032_configuracion_consumos_produccion.sql`: `configuracion` (clave/valor para canales, pasarelas y datos de empresa), `produccion_ordenes_consumo` (consumos reales de materia prima por orden BOM) y ampliación del ENUM `kardex_inventario.tipo_movimiento` con `SALIDA_PRODUCCION` / `ENTRADA_PRODUCCION`.
+
+> Nota: la numeración omite 009-012 y 017 porque nunca se emitieron en el proyecto; la secuencia real es 001-008, 013-016, 018-032.
 
 ---
 
@@ -132,6 +136,9 @@ Las migraciones se encuentran en `database/migrations/` ordenadas secuencialment
 - `/configuracion/whatsapp`: Configuración de notificaciones.
 - `/auditoria/logs`: Visor de trazabilidad y logs.
 - `/tienda`: Portal e-commerce público.
+- `/tienda/checkout`: Checkout con validación bancaria C2P en vivo.
+- `/tienda/pedido-exitoso`: Confirmación de pago C2P aprobado.
+- `/preventa/app`: App móvil de preventa en ruta (sincronización offline/online).
 
 ### B. Endpoints API REST Principales
 - `GET/POST /api/maestros/productos`: Consulta y guardado de productos.
@@ -156,8 +163,14 @@ Las migraciones se encuentran en `database/migrations/` ordenadas secuencialment
 
 1. **`iniciar_servidor.bat`:** Script en la raíz para iniciar el servidor web PHP en el puerto 8000.
 2. **`generar_licencia.bat`:** Script en la raíz para emitir licencias `.lic` firmadas con RSA-SHA256 bajo la marca `mi`.
-3. **`config/database.php`:** Archivo con las credenciales de base de datos creadas por el instalador.
+3. **`config/database.php`:** Archivo con las credenciales de base de datos creadas por el instalador (NO versionado en Git: lo genera el Setup Wizard o el entrypoint del contenedor).
 4. **`storage/installed.lock`:** Archivo testigo que indica que el sistema está instalado. Si se borra, el sistema vuelve a entrar en modo `/installer`.
+
+### Despliegue en contenedor (Docker / Portainer)
+- **`Dockerfile`:** imagen `php:8.2-apache` + `pdo_mysql` + DocumentRoot `public/`.
+- **`docker-compose.yml`:** servicios `app` (puerto 8080) y `db` (MariaDB 10.11, healthcheck); volúmenes `db_data`, `app_config`, `app_storage`.
+- **`docker/entrypoint.sh` + `docker/init_db.php`:** en el primer arranque ejecutan `InstallerService::instalarBaseDatos()` y `InstallerService::finalizarInstalacion()` con las variables de entorno `DB_*` y `ADMIN_*`; en arranques posteriores no hacen nada (idempotente).
+- **Guía completa:** `README_CONTAINERS.md` (despliegue desde Portainer, actualización, respaldos, licencia).
 
 ---
 *Fin de la memoria técnica del proyecto mi ERP.*

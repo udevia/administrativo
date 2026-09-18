@@ -1,5 +1,7 @@
-/vendor/
 /logs/
 /storage/
 *.log
 .env
+
+# Configuración de BD (generada por el instalador o por el contenedor)
+/config/database.php
