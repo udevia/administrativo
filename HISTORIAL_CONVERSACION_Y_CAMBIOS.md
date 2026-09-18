@@ -111,6 +111,7 @@ Se realizó una auditoría estática completa (123 archivos PHP, 27 migraciones 
     - **`docker-compose.yml`:** stack de 2 servicios (`app` en puerto 8080 + `db` MariaDB 10.11 con healthcheck), volúmenes persistentes `db_data`/`app_config`/`app_storage` y variables de entorno documentadas.
     - **`.env.example` y `README_CONTAINERS.md`:** guía completa de despliegue desde Portainer (Stacks), actualización, respaldos y montaje de licencia.
     - **`config/database.php` fuera de Git:** se quitó del versionado (y de la imagen Docker) porque era un artefacto de entorno con credenciales de XAMPP; ahora lo genera el instalador web o el entrypoint del contenedor. En máquinas existentes el archivo local se conserva tal cual.
+    - **`008_formatos_seeds.sql` movido a `database/migrations/`:** estaba en `database/seeds/` donde ni el instalador ni `run_migrations.php` lo ejecutaban, de modo que las instalaciones nuevas quedaban sin plantillas de impresión. Al estar en `migrations/` (INSERT idempotente con `ON DUPLICATE KEY`) se aplica en todo aprovisionamiento. La secuencia real de migraciones queda en **27 archivos**: 001-008, 013-016, 018-032.
 
 **Limitación de esta sesión:** el entorno de auditoría no disponía de PHP/MySQL, por lo que la verificación fue estática (balance de llaves, parser HTML, cruces de rutas/clases/tablas). Se recomienda ejecutar `php tools/smoke_test_mi.php` y probar los módulos en un entorno con base de datos tras aplicar la migración 032.
 
